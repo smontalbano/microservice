@@ -15,16 +15,12 @@ import (
 func main() {
 	l := log.New(os.Stdout, "product-api", log.LstdFlags)
 
-	// Setup handlers
-	hh := handlers.NewHello(l)
-	gh := handlers.NewGoodbye(l)
+	// Setup handler
 	ph := handlers.NewProducts(l)
 
 	// Setup servemux
 	sm := http.NewServeMux()
 	sm.Handle("/", ph)
-	sm.Handle("/hello", hh)
-	sm.Handle("/goodbye", gh)
 
 	// Configure server
 	s := &http.Server{
