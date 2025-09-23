@@ -1,26 +1,67 @@
 package main
 
 import (
-	"fmt"
-	"io"
+	"context"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"main.go/handlers"
 )
 
 func main() {
-	http.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		fmt.Println("Hello World")
-		d, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(rw, "Oops", http.StatusBadRequest)
-			return
+	l := log.New(os.Stdout, "product-api", log.LstdFlags)
+
+	// Setup handlers
+	hh := handlers.NewHello(l)
+	gh := handlers.NewGoodbye(l)
+	ph := handlers.NewProducts(l)
+
+	// Setup servemux
+	sm := http.NewServeMux()
+	sm.Handle("/", ph)
+	sm.Handle("/hello", hh)
+	sm.Handle("/goodbye", gh)
+
+	// Configure server
+	s := &http.Server{
+		Addr:         ":9911",
+		Handler:      sm,
+		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	}
+
+	// Run server in goroutine
+	go func() {
+		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			// Only fatal if it's not a graceful shutdown
+			l.Fatalf("Could not listen on :9911 %v\n", err)
 		}
+	}()
 
-		fmt.Fprintf(rw, "Hello %s", d)
-	})
+	// Trap interrupt or terminate signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	http.HandleFunc("/goodbye", func(rw http.ResponseWriter, r *http.Request) {
-		fmt.Println("Goodbye World")
-	})
+	// Block until a signal is received
+	sig := <-sigChan
+	l.Println("\nReceived terminate, graceful shutdown", sig)
 
-	http.ListenAndServe(":9911", nil)
+	// Create deadline to wait for ongoing requests
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Shutdown server
+	if err := s.Shutdown(ctx); err != nil {
+		l.Printf("Graceful shutdown did not complete in 30s: %v\n", err)
+		if err := s.Close(); err != nil {
+			l.Printf("Error forcing close: %v\n", err)
+		}
+	}
+
+	l.Println("Server shut down gracefully")
 }
