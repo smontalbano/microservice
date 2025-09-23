@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"main.go/data"
+	"github.com/smontalbano/microservice/data"
 )
 
 type Products struct {

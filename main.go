@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"main.go/handlers"
+	"github.com/smontalbano/microservice/handlers"
 )
 
 func main() {
