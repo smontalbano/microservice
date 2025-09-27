@@ -15,14 +15,14 @@ import (
 func main() {
 	l := log.New(os.Stdout, "product-api", log.LstdFlags)
 
-	// Setup handler
+	// create the handlers
 	ph := handlers.NewProducts(l)
 
-	// Setup servemux
+	// create a new serve mux and register the handlers
 	sm := http.NewServeMux()
 	sm.Handle("/", ph)
 
-	// Configure server
+	// create a new server
 	s := &http.Server{
 		Addr:         ":9911",
 		Handler:      sm,
@@ -31,7 +31,9 @@ func main() {
 		WriteTimeout: 1 * time.Second,
 	}
 
-	// Run server in goroutine
+	l.Println("Starting server on port 9911")
+
+	// start the server
 	go func() {
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			// Only fatal if it's not a graceful shutdown
@@ -45,7 +47,7 @@ func main() {
 
 	// Block until a signal is received
 	sig := <-sigChan
-	l.Println("\nReceived terminate, graceful shutdown", sig)
+	l.Println("Received terminate, graceful shutdown", sig)
 
 	// Create deadline to wait for ongoing requests
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
