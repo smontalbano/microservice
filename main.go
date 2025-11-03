@@ -33,7 +33,7 @@ func main() {
 	postRouter.HandleFunc("/", ph.AddProduct)
 	postRouter.Use(ph.MiddlewareProductValidation)
 
-	// create a new server
+	// create a new server using
 	s := &http.Server{
 		Addr:         ":9911",
 		Handler:      sm,

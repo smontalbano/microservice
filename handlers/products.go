@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -19,9 +20,6 @@ type Products struct {
 func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
-
-// ServeHTTP is the main entry point for the handler and satisfies the http.Handler
-// interface
 
 // getProducts returns the products from the data store
 func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
@@ -78,13 +76,31 @@ func (p Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 		err := prod.FromJSON(r.Body)
 		if err != nil {
 			p.l.Println("[ERROR] deserializing product", err)
-			http.Error(rw, "Error reading product", http.StatusBadRequest)
+			http.Error(
+				rw,
+				fmt.Sprintf("Error reading product: %s", err),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
+		// validate the product
+		err = prod.Validate()
+		if err != nil {
+			p.l.Println("[ERROR] validating product", err)
+			http.Error(
+				rw,
+				fmt.Sprintf("Error validating product: %s", err),
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		// add the product to the context
 		ctx := context.WithValue(r.Context(), KeyProduct{}, prod)
 		req := r.WithContext(ctx)
 
+		// Call then ext handler, which can be another middleware in the chain, or the final handler
 		next.ServeHTTP(rw, req)
 	})
 }
